@@ -1,53 +1,134 @@
-// Place here the file operation functions for loading and saving books
+import fs from 'node:fs';
+import path from 'node:path';
+import chalk from 'chalk';
+
+const FILE_PATH = path.join('books.json');
+
+function createEmptyArray() {
+  fs.writeFileSync(FILE_PATH, JSON.stringify([]));
+  return [];
+}
 
 function loadBooks() {
-  // TODO: Implement this function
-  // Read from books.json
-  // Handle missing file (create empty array)
-  // Handle invalid JSON (notify user, use empty array)
-  // Use try-catch for error handling
+  try {
+    if (!fs.existsSync(FILE_PATH)) {
+      throw new Error('Missing file');
+    }
+    const books = fs.readFileSync(FILE_PATH, 'utf8');
+
+    if (!books) {
+      console.log('Books list cannot be empty');
+    }
+
+    return JSON.parse(books);
+  } catch (error) {
+    console.log(error.message);
+    return createEmptyArray(FILE_PATH);
+  }
 }
 
 function saveBooks(books) {
-  // TODO: Implement this function
-  // Write books array to books.json
-  // Use try-catch for error handling
+  try {
+    fs.writeFileSync(FILE_PATH, JSON.stringify(books, null, 2));
+    return true;
+  } catch (error) {
+    console.error('Error saving books:', error.message);
+    return false;
+  }
 }
 
 function addBook(book) {
-  // TODO: Implement this function
+  const books = loadBooks();
+  const newBook = {
+    id: books.length > 0 ? Math.max(...books.map((b) => b.id)) + 1 : 1,
+    title: book.title,
+    author: book.author,
+    genre: book.genre,
+    read: typeof book.read === 'boolean' ? book.read : false,
+  };
+  const isBookAlreadyAdded = books.some(
+    ({ title, author }) => title === newBook.title && author === newBook.author
+  );
+  if (isBookAlreadyAdded) {
+    return 'The book is already added';
+  }
+  books.push(newBook);
+  saveBooks(books);
+  return newBook;
+}
+
+function getReadBooks() {
+  const books = loadBooks();
+  return books.filter((book) => book.read === true);
 }
 
 function getUnreadBooks() {
-  // TODO: Implement this function using filter()
+  const books = loadBooks();
+  return books.filter((book) => book.read === false);
 }
 
 function getBooksByGenre(genre) {
-  // TODO: Implement this function using filter()
+  const books = loadBooks();
+  return books.filter((book) => book.genre === genre);
 }
 
 function markAsRead(id) {
-  // TODO: Implement this function using map()
+  const books = loadBooks();
+  const updatedBooks = books.map((book) =>
+    book.id === id ? { ...book, read: true } : book
+  );
+  saveBooks(updatedBooks);
+  return `${updatedBooks.find((book) => book.id === id)?.title} by ${updatedBooks.find((book) => book.id === id)?.author} - read`;
 }
 
 function getTotalBooks() {
-  // TODO: Implement this function using length
+  return loadBooks().length;
 }
 
 function hasUnreadBooks() {
-  // TODO: Implement this function using some()
+  const books = loadBooks();
+  return books.some((book) => book.read === false);
 }
 
 function printAllBooks() {
-  // TODO: Implement this function
-  // Loop through and display with chalk
-  // Use green for read books, yellow for unread
-  // Use cyan for titles
+  const books = loadBooks();
+  let result = '';
+  books.forEach((book) => {
+    const { id, title, author, genre, read } = book;
+    const coloredRead =
+      read === true ? chalk.green('✓ Read') : chalk.yellow('⚠ Unread');
+    const coloredTitle = chalk.cyan(title);
+    result += `${id}. ${coloredTitle} by ${author} (${genre}) ${coloredRead}\n`;
+  });
+  return result;
 }
 
 function printSummary() {
-  // TODO: Implement this function
-  // Show statistics with chalk
-  // Display total books, read count, unread count
-  // Use bold for stats
+  const allBooks = printAllBooks();
+  const numTotalBooks = chalk.bold(getTotalBooks());
+  const numReadBooks = chalk.bold.green(getReadBooks().length);
+  const numUnreadBooks = chalk.bold.yellow(getUnreadBooks().length);
+  return `
+📚 MY READING LIST 📚
+
+All Books:
+${allBooks}
+
+📊 SUMMARY 📊
+Total Books: ${numTotalBooks}
+Read: ${numReadBooks}
+Unread: ${numUnreadBooks}
+`;
 }
+
+export {
+  loadBooks,
+  saveBooks,
+  addBook,
+  getReadBooks,
+  getUnreadBooks,
+  getBooksByGenre,
+  markAsRead,
+  printAllBooks,
+  printSummary,
+};
